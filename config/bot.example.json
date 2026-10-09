@@ -1,0 +1,45 @@
+{
+  "name": "Geo Report Bot",
+  "language": "de",
+  "welcome_text": "Willkommen! Ich begleite dich bei der Erfassung einer Ortsmeldung.",
+  "help_text": "❓ Hilfe & Kontakt\n\nDer Bot führt Schritt für Schritt durch eine Meldung:\n\n1️⃣ Adresse suchen und auswählen\n2️⃣ Kategorie und Unterkategorie wählen\n3️⃣ Menge angeben\n4️⃣ Beschreibung ergänzen (optional)\n5️⃣ Foto hinzufügen (optional)\n\nVor dem Absenden kann die gesamte Meldung geprüft und bearbeitet werden.",
+  "contact_text": "Falls es Fragen oder Probleme gibt, wende dich bitte an die vom Betreiber angegebene Kontaktstelle.",
+  "public_result_url": "",
+  "channel_footer_text": "Alle veröffentlichten Meldungen:",
+  "daily_user_limit": 0,
+  "rate_limits": {
+    "enabled": false,
+    "per_minute": 3,
+    "per_hour": 10
+  },
+  "description_max_length": 60,
+  "photo_max_bytes": 10485760,
+  "geocoding": {
+    "country_codes": ["de"],
+    "viewbox": null,
+    "bounded": false,
+    "result_limit": 8,
+    "allowed_states": [],
+    "allowed_counties": [],
+    "allowed_municipalities": [],
+    "postcode_prefixes": []
+  },
+  "amount_options": ["1", "10+", "20+"],
+  "categories": [
+    {
+      "id": "category_one",
+      "label": "Kategorie eins",
+      "subcategories": [
+        {"id": "type_one", "label": "Typ eins"},
+        {"id": "type_two", "label": "Typ zwei"}
+      ]
+    },
+    {
+      "id": "other",
+      "label": "Sonstiges",
+      "subcategories": [
+        {"id": "other", "label": "Sonstiges"}
+      ]
+    }
+  ]
+}
