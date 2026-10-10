@@ -75,6 +75,10 @@ Non-empty filter groups are combined with AND; values inside one list are altern
 
 Only one long-polling process may use a Telegram token. Stop any deployed instance before reusing its test token locally.
 
+For a complete Windows and VS Code walkthrough—including SSH cloning, local
+configuration, administrator bootstrap, manual acceptance scenarios, and export
+checks—see [MANUAL_TESTING.md](MANUAL_TESTING.md).
+
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -e ".[dev]"
