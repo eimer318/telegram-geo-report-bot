@@ -95,6 +95,53 @@ settings are:
 Keep category and subcategory IDs stable, lowercase, and preferably ASCII with
 underscores. Visible labels may contain spaces, umlauts, and `ß`.
 
+For example, replace the complete `categories` array with categories suitable
+for the intended reporting project:
+
+```json
+"categories": [
+  {
+    "id": "street_furniture",
+    "label": "Straßenmobiliar",
+    "subcategories": [
+      {"id": "bench", "label": "Sitzbank"},
+      {"id": "bicycle_rack", "label": "Fahrradständer"},
+      {"id": "street_light", "label": "Straßenbeleuchtung"}
+    ]
+  },
+  {
+    "id": "accessibility",
+    "label": "Barrierefreiheit",
+    "subcategories": [
+      {"id": "blocked_path", "label": "Blockierter Weg"},
+      {"id": "missing_ramp", "label": "Fehlende Rampe"},
+      {"id": "damaged_tactile_paving", "label": "Defektes Blindenleitsystem"}
+    ]
+  },
+  {
+    "id": "cleanliness",
+    "label": "Sauberkeit",
+    "subcategories": [
+      {"id": "litter", "label": "Müllablagerung"},
+      {"id": "full_bin", "label": "Überfüllter Mülleimer"}
+    ]
+  },
+  {
+    "id": "other",
+    "label": "Sonstiges",
+    "subcategories": [
+      {"id": "other", "label": "Sonstiges"}
+    ]
+  }
+]
+```
+
+The IDs are stored in encrypted reports and exports, so do not rename them once
+real data exists. Labels are display text and may be adjusted later. Every
+category needs at least one subcategory; use an `other` fallback when no finer
+classification is required. The values in `amount_options`, for example
+`["1", "5+", "10+"]`, apply to every configured category.
+
 The example configuration searches throughout Germany:
 
 ```json
