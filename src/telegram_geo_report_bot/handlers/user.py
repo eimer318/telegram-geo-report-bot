@@ -318,59 +318,66 @@ async def handle_text(update, context) -> bool:
         finally:
             await _delete_consumed_user_message(update)
     if step == "description":
-        entry = context.user_data.get("entry")
-        if not isinstance(entry, dict):
-            await show_main_menu(update, context)
-            return True
-        assessment = assess_description(
-            update.effective_message.text,
-            max_length=services.settings.config.description_max_length,
-        )
-        if assessment.too_long:
-            await _flow_message(
-                update,
-                context,
-                "⚠️ Die Beschreibung darf höchstens "
-                f"{services.settings.config.description_max_length} Zeichen haben.\n\n"
-                "📝 Bitte sende eine kürzere Beschreibung.",
-                [
-                    [
-                        InlineKeyboardButton(
-                            "⏭ Keine Zusatzinfos",
-                            callback_data="description:none",
-                        )
-                    ],
-                    [_back_or_cancel_button(context, "amount")],
-                ],
-            )
-            return True
-        entry["description"] = assessment.normalized or "Keine Zusatzinfos"
-        if assessment.suspicious:
-            now = utc_now_iso()
-            entry["security"] = {
-                "publication_blocked": True,
-                "automatic_approval_blocked": True,
-                "reason_codes": list(assessment.reason_codes),
-                "detected_at": now,
-                "cleared_at": None,
-                "cleared_by": None,
-            }
-            reporter = _reporter(update.effective_user.id, services)
-            record_security_event(
-                services.settings.paths.security_events_file,
-                services.settings.cipher,
-                reporter,
-                "suspicious_description",
-                assessment.reason_codes,
-                entry_id=entry["id"],
-            )
-        if _is_editing(context, "description"):
-            await _finish_edit(update, context)
-        else:
-            context.user_data["flow_step"] = "photo_decision"
-            await _show_photo_question(update, context)
-        return True
+        try:
+            return await _handle_description_text(update, context, services)
+        finally:
+            await _delete_consumed_user_message(update)
     return False
+
+
+async def _handle_description_text(update, context, services) -> bool:
+    entry = context.user_data.get("entry")
+    if not isinstance(entry, dict):
+        await show_main_menu(update, context)
+        return True
+    assessment = assess_description(
+        update.effective_message.text,
+        max_length=services.settings.config.description_max_length,
+    )
+    if assessment.too_long:
+        await _flow_message(
+            update,
+            context,
+            "⚠️ Die Beschreibung darf höchstens "
+            f"{services.settings.config.description_max_length} Zeichen haben.\n\n"
+            "📝 Bitte sende eine kürzere Beschreibung.",
+            [
+                [
+                    InlineKeyboardButton(
+                        "⏭ Keine Zusatzinfos",
+                        callback_data="description:none",
+                    )
+                ],
+                [_back_or_cancel_button(context, "amount")],
+            ],
+        )
+        return True
+    entry["description"] = assessment.normalized or "Keine Zusatzinfos"
+    if assessment.suspicious:
+        now = utc_now_iso()
+        entry["security"] = {
+            "publication_blocked": True,
+            "automatic_approval_blocked": True,
+            "reason_codes": list(assessment.reason_codes),
+            "detected_at": now,
+            "cleared_at": None,
+            "cleared_by": None,
+        }
+        reporter = _reporter(update.effective_user.id, services)
+        record_security_event(
+            services.settings.paths.security_events_file,
+            services.settings.cipher,
+            reporter,
+            "suspicious_description",
+            assessment.reason_codes,
+            entry_id=entry["id"],
+        )
+    if _is_editing(context, "description"):
+        await _finish_edit(update, context)
+    else:
+        context.user_data["flow_step"] = "photo_decision"
+        await _show_photo_question(update, context)
+    return True
 
 
 def _markup(keyboard):
@@ -714,6 +721,13 @@ async def handle_photo(update, context) -> None:
     services = get_services(context)
     if context.user_data.get("flow_step") != "photo":
         return
+    try:
+        await _handle_photo_input(update, context, services)
+    finally:
+        await _delete_consumed_user_message(update)
+
+
+async def _handle_photo_input(update, context, services) -> None:
     entry = context.user_data.get("entry")
     if not isinstance(entry, dict):
         await show_main_menu(update, context)

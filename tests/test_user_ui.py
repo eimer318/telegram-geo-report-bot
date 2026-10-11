@@ -10,6 +10,7 @@ from telegram_geo_report_bot.handlers.user import (
     _progress,
     _rate_allowed,
     handle_flow_callback,
+    handle_photo,
     handle_text,
 )
 
@@ -123,6 +124,83 @@ class UserUiTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(consumed)
         delete.assert_awaited_once_with()
         flow_message.assert_awaited_once()
+
+    async def test_description_is_normalized_with_umlauts_and_message_is_removed(self):
+        delete = AsyncMock()
+        entry = {"id": "draft", "description": ""}
+        update = SimpleNamespace(
+            callback_query=None,
+            effective_user=SimpleNamespace(id=123),
+            effective_message=SimpleNamespace(
+                text="  Grüße   aus Kölns Straße  ", delete=delete
+            ),
+        )
+        context = SimpleNamespace(
+            user_data={"flow_step": "description", "entry": entry}
+        )
+        services = SimpleNamespace(
+            settings=SimpleNamespace(
+                config=SimpleNamespace(description_max_length=100)
+            )
+        )
+        with (
+            patch(
+                "telegram_geo_report_bot.handlers.user.get_services",
+                return_value=services,
+            ),
+            patch(
+                "telegram_geo_report_bot.handlers.user._show_photo_question",
+                new=AsyncMock(),
+            ) as show_photo,
+        ):
+            consumed = await handle_text(update, context)
+
+        self.assertTrue(consumed)
+        self.assertEqual("Grüße aus Kölns Straße", entry["description"])
+        delete.assert_awaited_once_with()
+        show_photo.assert_awaited_once_with(update, context)
+
+    async def test_uploaded_photo_message_is_removed_after_processing(self):
+        delete = AsyncMock()
+        telegram_file = SimpleNamespace(
+            download_as_bytearray=AsyncMock(return_value=bytearray(b"image"))
+        )
+        update = SimpleNamespace(
+            callback_query=None,
+            effective_message=SimpleNamespace(
+                photo=[SimpleNamespace(get_file=AsyncMock(return_value=telegram_file))],
+                delete=delete,
+            ),
+        )
+        entry = {"id": "draft", "photo": None}
+        context = SimpleNamespace(
+            user_data={"flow_step": "photo", "entry": entry}
+        )
+        services = SimpleNamespace(
+            settings=SimpleNamespace(
+                config=SimpleNamespace(photo_max_bytes=1_000_000)
+            ),
+            photos=SimpleNamespace(save=lambda _name, _content: None),
+        )
+        with (
+            patch(
+                "telegram_geo_report_bot.handlers.user.get_services",
+                return_value=services,
+            ),
+            patch(
+                "telegram_geo_report_bot.handlers.user.sanitize_jpeg",
+                return_value=b"clean-jpeg",
+            ),
+            patch(
+                "telegram_geo_report_bot.handlers.user._show_review",
+                new=AsyncMock(),
+            ) as show_review,
+        ):
+            await handle_photo(update, context)
+
+        self.assertTrue(str(entry["photo"]).endswith(".jpg"))
+        delete.assert_awaited_once_with()
+        show_review.assert_awaited_once_with(update, context)
 
     def test_main_menu_and_edit_menu_use_clear_emoji_labels(self):
         main_labels = [row[0].text for row in main_keyboard(True, has_result_link=True)]

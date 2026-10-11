@@ -54,6 +54,24 @@ class ExportTests(unittest.TestCase):
                 json.loads((root / "entries.geojson").read_text("utf-8"))["type"],
             )
 
+    def test_json_and_geojson_preserve_umlauts_and_sharp_s(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            value = entry("unicode")
+            value["address"]["street"] = "Grüne Straße 12"
+            value["description"] = "Grüße aus Köln"
+
+            write_exports(
+                [value], root / "entries.json", root / "entries.geojson"
+            )
+
+            json_text = (root / "entries.json").read_text("utf-8")
+            geojson_text = (root / "entries.geojson").read_text("utf-8")
+            self.assertIn("Grüne Straße 12", json_text)
+            self.assertIn("Grüße aus Köln", json_text)
+            self.assertIn("Grüne Straße 12", geojson_text)
+            self.assertNotIn("\\u00df", json_text)
+
 
 if __name__ == "__main__":
     unittest.main()
