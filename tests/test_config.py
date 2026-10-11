@@ -24,11 +24,33 @@ class ConfigurationTests(unittest.TestCase):
                     "BOT_CONFIG_FILE": str(config),
                     "BOT_DATA_DIR": str(root / "not-created"),
                     "BOT_PHOTO_DIR": str(root / "also-not-created"),
+                    "NOMINATIM_SEARCH_URL": "https://geo.example.test/search",
                 },
             )
             self.assertEqual("Objekte", settings.config.category_labels["objects"])
             self.assertFalse(settings.paths.data_dir.exists())
             self.assertFalse(settings.paths.photo_dir.exists())
+            self.assertEqual(
+                "https://geo.example.test/search", settings.nominatim_search_url
+            )
+
+    def test_nominatim_url_rejects_credentials_and_non_http_schemes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            config = root / "bot.json"
+            config.write_text(json.dumps(config_payload()), encoding="utf-8")
+            base = {
+                "BOT_TOKEN": "token",
+                "ENCRYPTION_KEY": Fernet.generate_key().decode(),
+                "BOT_CONFIG_FILE": str(config),
+            }
+            for value in ("file:///tmp/search", "https://user:secret@example.test/search"):
+                with self.subTest(value=value):
+                    with self.assertRaisesRegex(ConfigurationError, "NOMINATIM_SEARCH_URL"):
+                        load_settings(
+                            root,
+                            environ={**base, "NOMINATIM_SEARCH_URL": value},
+                        )
 
     def test_multiline_help_and_disabled_limits_are_preserved(self):
         with tempfile.TemporaryDirectory() as temporary:

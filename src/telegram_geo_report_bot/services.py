@@ -31,5 +31,9 @@ def build_services(settings: Settings) -> Services:
         ),
         photos=PhotoStore(settings.paths.photo_dir, settings.cipher),
         admins=AdminStore(settings.paths.admins_file, settings.cipher),
-        geocoder=NominatimClient(settings.config.geocoding, settings.nominatim_user_agent),
+        geocoder=NominatimClient(
+            settings.config.geocoding,
+            settings.nominatim_user_agent,
+            settings.nominatim_search_url,
+        ),
     )

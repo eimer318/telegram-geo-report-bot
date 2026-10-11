@@ -65,11 +65,17 @@ def _filters_active(config: GeocodingConfig) -> bool:
 
 
 class NominatimClient:
-    def __init__(self, config: GeocodingConfig, user_agent: str):
+    def __init__(
+        self,
+        config: GeocodingConfig,
+        user_agent: str,
+        search_url: str = "https://nominatim.openstreetmap.org/search",
+    ):
         if not user_agent:
             raise ValueError("NOMINATIM_USER_AGENT fehlt")
         self.config = config
         self.user_agent = user_agent
+        self.search_url = search_url
         self._lock = threading.Lock()
         self._last_request = 0.0
         self._cache: dict[str, list[dict[str, Any]]] = {}
@@ -95,7 +101,7 @@ class NominatimClient:
                 if delay > 0:
                     time.sleep(delay)
                 response = requests.get(
-                    "https://nominatim.openstreetmap.org/search",
+                    self.search_url,
                     params=params,
                     headers={"User-Agent": self.user_agent},
                     timeout=10,

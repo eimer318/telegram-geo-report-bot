@@ -85,6 +85,7 @@ class UserUiTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(consumed)
         delete.assert_awaited_once_with()
         flow_message.assert_awaited_once()
+        self.assertIn("OpenStreetMap", flow_message.await_args.args[2])
         self.assertIn("address_results", context.user_data)
 
     async def test_failed_address_cleanup_does_not_interrupt_the_flow(self):

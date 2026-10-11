@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from cryptography.fernet import Fernet
 from dotenv import dotenv_values
@@ -111,6 +112,7 @@ class Settings:
     channel_write_enabled: bool
     channel_daily_limit: bool
     nominatim_user_agent: str
+    nominatim_search_url: str
 
 
 def _boolean(value: Any, default: bool = False) -> bool:
@@ -122,6 +124,16 @@ def _boolean(value: Any, default: bool = False) -> bool:
     if normalized in {"0", "false", "no", "off"}:
         return False
     raise ConfigurationError(f"Ungültiger boolescher Wert: {value!r}")
+
+
+def _http_url(value: Any, name: str) -> str:
+    cleaned = str(value or "").strip()
+    parsed = urlsplit(cleaned)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ConfigurationError(f"{name} muss eine vollständige HTTP(S)-URL sein")
+    if parsed.username or parsed.password:
+        raise ConfigurationError(f"{name} darf keine Zugangsdaten enthalten")
+    return cleaned
 
 
 def _positive_int(value: Any, name: str, *, minimum: int = 1, maximum: int) -> int:
@@ -396,4 +408,11 @@ def load_settings(
         nominatim_user_agent=values.get(
             "NOMINATIM_USER_AGENT", "TelegramGeoReportBot/1.0"
         ).strip(),
+        nominatim_search_url=_http_url(
+            values.get(
+                "NOMINATIM_SEARCH_URL",
+                "https://nominatim.openstreetmap.org/search",
+            ),
+            "NOMINATIM_SEARCH_URL",
+        ),
     )

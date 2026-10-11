@@ -59,6 +59,7 @@ class GeocodingTests(unittest.TestCase):
                 postcode_prefixes=("10",),
             ),
             "GeoReportBot/1.0 contact@example.invalid",
+            "https://geo.example.test/search",
         )
 
         results = client.search("Beispielstraße 1")
@@ -69,6 +70,9 @@ class GeocodingTests(unittest.TestCase):
         params = request_get.call_args.kwargs["params"]
         self.assertEqual("de", params["countrycodes"])
         self.assertEqual(40, params["limit"])
+        self.assertEqual(
+            "https://geo.example.test/search", request_get.call_args.args[0]
+        )
 
     @patch("telegram_geo_report_bot.geocoding.requests.get")
     def test_empty_region_lists_keep_countrywide_search(self, request_get):

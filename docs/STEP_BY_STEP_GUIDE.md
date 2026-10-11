@@ -68,6 +68,7 @@ BOT_CONFIG_FILE=config/bot.local.json
 BOT_DATA_DIR=.local/data
 BOT_PHOTO_DIR=.local/photos
 NOMINATIM_USER_AGENT=TelegramGeoReportBot-Test/0.1 (your-contact@example.org)
+NOMINATIM_SEARCH_URL=https://nominatim.openstreetmap.org/search
 
 TELEGRAM_CHANNEL_ID=
 TELEGRAM_CHANNEL_ALLOW_WRITE=false
@@ -76,7 +77,11 @@ CHANNEL_DAILY_LIMIT=true
 
 The user agent is not a password or API key. It identifies the application to
 the public Nominatim service. Replace the example contact with an address or URL
-monitored by the operator.
+monitored by the operator. `NOMINATIM_SEARCH_URL` may point to another compatible
+Nominatim provider or a self-hosted instance without changing the application.
+Before deployment, review the selected provider's usage policy. The public OSMF
+service has strict capacity, identification, caching, and attribution rules:
+https://operations.osmfoundation.org/policies/nominatim/
 
 The files `.env.local`, `config/bot.local.json`, and the `.local/` directory are
 ignored by Git. Confirm that they remain untracked before every commit.
