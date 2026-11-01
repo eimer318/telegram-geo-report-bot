@@ -3,7 +3,7 @@ param(
     [string]$EnvFile = ".env.local",
     [string]$ConfigFile = "config/bot.local.json",
 
-    [ValidateSet("run", "export", "channel", "admin")]
+    [ValidateSet("run", "export", "channel", "admin", "umap")]
     [string]$Command = "run",
 
     [string[]]$CommandArguments = @()

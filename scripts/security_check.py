@@ -18,6 +18,7 @@ FORBIDDEN_NAMES = {
     "entries.geojson",
     "admins.enc",
     "channel_publish_state.enc",
+    "umap_session.enc",
 }
 TEXT_SUFFIXES = {
     ".py", ".md", ".toml", ".json", ".yml", ".yaml", ".txt", ".example", ".gitignore"

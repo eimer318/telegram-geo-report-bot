@@ -24,6 +24,22 @@
     "allowed_municipalities": [],
     "postcode_prefixes": []
   },
+  "umap": {
+    "enabled": false,
+    "base_url": "https://umap.example.org",
+    "map_url": "https://umap.example.org/de/map/example_123/",
+    "map_id": "123",
+    "layer_id": "00000000-0000-0000-0000-000000000000",
+    "language": "de",
+    "source_id": "my-report-project",
+    "publish_photos": false,
+    "category_styles": {
+      "category_one": {
+        "marker_color": "#3366cc",
+        "marker_label": "C1"
+      }
+    }
+  },
   "amount_options": ["1", "10+", "20+"],
   "categories": [
     {

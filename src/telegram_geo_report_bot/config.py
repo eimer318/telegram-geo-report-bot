@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
+from uuid import UUID
 
 from cryptography.fernet import Fernet
 from dotenv import dotenv_values
@@ -52,6 +53,38 @@ class RateLimitConfig:
     per_hour: int
 
 
+@dataclass(frozen=True)
+class UMapCategoryStyle:
+    marker_color: str = ""
+    marker_label: str = ""
+
+
+@dataclass(frozen=True)
+class UMapConfig:
+    base_url: str
+    map_url: str
+    map_id: str
+    layer_id: str
+    language: str
+    source_id: str
+    publish_photos: bool
+    category_styles: dict[str, UMapCategoryStyle]
+
+    @property
+    def layer_url(self) -> str:
+        return (
+            f"{self.base_url}/{self.language}/datalayer/"
+            f"{self.map_id}/{self.layer_id}/"
+        )
+
+    @property
+    def update_url(self) -> str:
+        return (
+            f"{self.base_url}/{self.language}/map/{self.map_id}/"
+            f"datalayer/update/{self.layer_id}/"
+        )
+
+
 
 @dataclass(frozen=True)
 class BotConfig:
@@ -69,6 +102,7 @@ class BotConfig:
     geocoding: GeocodingConfig
     amount_options: tuple[str, ...]
     categories: tuple[Category, ...]
+    umap: UMapConfig | None
 
     @property
     def category_labels(self) -> dict[str, str]:
@@ -99,6 +133,9 @@ class Paths:
     channel_lock_path: Path
     security_events_file: Path
     rate_limit_file: Path
+    umap_session_file: Path
+    umap_backup_dir: Path
+    umap_lock_path: Path
 
 
 @dataclass(frozen=True)
@@ -113,6 +150,8 @@ class Settings:
     channel_daily_limit: bool
     nominatim_user_agent: str
     nominatim_search_url: str
+    umap_write_enabled: bool
+    umap_user_agent: str
 
 
 def _boolean(value: Any, default: bool = False) -> bool:
@@ -133,6 +172,26 @@ def _http_url(value: Any, name: str) -> str:
         raise ConfigurationError(f"{name} muss eine vollständige HTTP(S)-URL sein")
     if parsed.username or parsed.password:
         raise ConfigurationError(f"{name} darf keine Zugangsdaten enthalten")
+    return cleaned
+
+
+def _https_origin(value: Any, name: str) -> str:
+    cleaned = _http_url(value, name).rstrip("/")
+    parsed = urlsplit(cleaned)
+    if parsed.scheme != "https" or parsed.path not in {"", "/"}:
+        raise ConfigurationError(f"{name} muss eine HTTPS-Origin ohne Pfad sein")
+    if parsed.query or parsed.fragment:
+        raise ConfigurationError(f"{name} darf keine Query oder Fragment enthalten")
+    return cleaned
+
+
+def _umap_source_id(value: Any) -> str:
+    cleaned = str(value or "").strip()
+    if not re.fullmatch(r"[a-z][a-z0-9_-]{2,63}", cleaned):
+        raise ConfigurationError(
+            "umap.source_id muss mit einem Kleinbuchstaben beginnen und darf "
+            "nur Kleinbuchstaben, Zahlen, Bindestriche und Unterstriche enthalten"
+        )
     return cleaned
 
 
@@ -285,6 +344,70 @@ def load_bot_config(path: Path) -> BotConfig:
     if not isinstance(rate_limits_raw, dict):
         raise ConfigurationError("rate_limits muss ein Objekt sein")
 
+    umap_config = None
+    umap_raw = raw.get("umap") or {}
+    if not isinstance(umap_raw, dict):
+        raise ConfigurationError("umap muss ein Objekt sein")
+    if _boolean(umap_raw.get("enabled"), False):
+        base_url = _https_origin(umap_raw.get("base_url"), "umap.base_url")
+        map_url = _http_url(umap_raw.get("map_url"), "umap.map_url")
+        base = urlsplit(base_url)
+        target = urlsplit(map_url)
+        if (target.scheme, target.netloc) != (base.scheme, base.netloc):
+            raise ConfigurationError("umap.map_url gehört nicht zur uMap-Origin")
+        map_id = str(umap_raw.get("map_id") or "").strip()
+        if not map_id.isdigit():
+            raise ConfigurationError("umap.map_id muss numerisch sein")
+        if map_id not in target.path:
+            raise ConfigurationError("umap.map_url enthält nicht die konfigurierte map_id")
+        layer_id = str(umap_raw.get("layer_id") or "").strip()
+        try:
+            UUID(layer_id)
+        except (ValueError, AttributeError) as exc:
+            raise ConfigurationError("umap.layer_id muss eine UUID sein") from exc
+        language = str(umap_raw.get("language") or "de").strip().lower()
+        if not re.fullmatch(r"[a-z]{2}(?:-[a-z]{2})?", language):
+            raise ConfigurationError("umap.language ist ungültig")
+
+        styles_raw = umap_raw.get("category_styles") or {}
+        if not isinstance(styles_raw, dict):
+            raise ConfigurationError("umap.category_styles muss ein Objekt sein")
+        known_categories = {category.id for category in categories}
+        category_styles: dict[str, UMapCategoryStyle] = {}
+        for category_id, style_raw in styles_raw.items():
+            if category_id not in known_categories:
+                raise ConfigurationError(
+                    f"umap.category_styles enthält unbekannte Kategorie: {category_id}"
+                )
+            if not isinstance(style_raw, dict):
+                raise ConfigurationError(
+                    f"umap.category_styles.{category_id} muss ein Objekt sein"
+                )
+            category_styles[category_id] = UMapCategoryStyle(
+                marker_color=_clean_text(
+                    style_raw.get("marker_color"),
+                    f"umap.category_styles.{category_id}.marker_color",
+                    required=False,
+                    limit=50,
+                ),
+                marker_label=_clean_text(
+                    style_raw.get("marker_label"),
+                    f"umap.category_styles.{category_id}.marker_label",
+                    required=False,
+                    limit=20,
+                ),
+            )
+        umap_config = UMapConfig(
+            base_url=base_url,
+            map_url=map_url,
+            map_id=map_id,
+            layer_id=layer_id,
+            language=language,
+            source_id=_umap_source_id(umap_raw.get("source_id")),
+            publish_photos=_boolean(umap_raw.get("publish_photos"), False),
+            category_styles=category_styles,
+        )
+
     return BotConfig(
         name=_clean_text(raw.get("name"), "name", limit=100),
         language=_clean_text(raw.get("language", "de"), "language", limit=10),
@@ -342,6 +465,7 @@ def load_bot_config(path: Path) -> BotConfig:
         ),
         amount_options=amount_options,
         categories=tuple(categories),
+        umap=umap_config,
     )
 
 
@@ -382,6 +506,12 @@ def load_settings(
         photo_dir = base_dir / photo_dir
     data_dir = data_dir.resolve()
     photo_dir = photo_dir.resolve()
+    umap_session_file = Path(values.get("UMAP_SESSION_FILE", "data/umap_session.enc"))
+    umap_backup_dir = Path(values.get("UMAP_BACKUP_DIR", "data/umap_backups"))
+    if not umap_session_file.is_absolute():
+        umap_session_file = base_dir / umap_session_file
+    if not umap_backup_dir.is_absolute():
+        umap_backup_dir = base_dir / umap_backup_dir
 
     paths = Paths(
         base_dir=base_dir,
@@ -395,6 +525,9 @@ def load_settings(
         channel_lock_path=data_dir / "channel_publish.lock",
         security_events_file=data_dir / "security_events.enc",
         rate_limit_file=data_dir / "rate_limit_state.enc",
+        umap_session_file=umap_session_file.resolve(),
+        umap_backup_dir=umap_backup_dir.resolve(),
+        umap_lock_path=data_dir / "umap_sync.lock",
     )
     return Settings(
         token=token,
@@ -414,5 +547,10 @@ def load_settings(
                 "https://nominatim.openstreetmap.org/search",
             ),
             "NOMINATIM_SEARCH_URL",
+        ),
+        umap_write_enabled=_boolean(values.get("UMAP_ALLOW_WRITE"), False),
+        umap_user_agent=(
+            values.get("UMAP_USER_AGENT", "TelegramGeoReportBot-uMap/1.0").strip()
+            or "TelegramGeoReportBot-uMap/1.0"
         ),
     )

@@ -21,5 +21,11 @@ secrets and personal data.
 - Never log Telegram updates, raw user input, tokens, or request headers.
 - Run only one long-polling instance for a token.
 - Review dependency audit results before deployment.
+- Keep the encrypted uMap session and encrypted layer backups outside Git and
+  readable only by the service account.
+- Treat a uMap session cookie like a password. Never place it on a command
+  line, in a unit file, screenshot, issue, log, or unencrypted backup.
+- Keep `UMAP_ALLOW_WRITE=false` until a read-only target check and reviewed
+  dry-run both succeed.
 
 Suspicious text remains encrypted and pending. It is excluded independently by both export and channel code until an administrator replaces the description and explicitly approves the report.

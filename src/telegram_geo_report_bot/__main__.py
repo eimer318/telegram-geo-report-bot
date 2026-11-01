@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import logging
 import sys
+import time
 from pathlib import Path
 
 from .application import run_bot
@@ -16,7 +18,11 @@ from .channel_publish import (
     publish,
 )
 from .config import ConfigurationError, load_settings
+from .operation_lock import OperationLockedError
 from .services import build_services
+from .umap.client import UMapClient, UMapError, UMapNetworkError
+from .umap.session_store import UMapCredentials, UMapSessionError, save_session
+from .umap.sync import UMapSyncError, check_connection, synchronize
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -37,6 +43,25 @@ def build_parser() -> argparse.ArgumentParser:
     admin = subcommands.add_parser("admin", help="Administratoren verwalten")
     admin.add_argument("action", choices=("add", "remove", "list"))
     admin.add_argument("user_id", nargs="?", type=int)
+
+    umap = subcommands.add_parser("umap", help="uMap-Anbindung prüfen und synchronisieren")
+    umap_commands = umap.add_subparsers(dest="umap_command", required=True)
+    umap_commands.add_parser("check", help="Sitzung und Ziel-Layer lesend prüfen")
+    umap_commands.add_parser(
+        "session", help="uMap-Sitzung interaktiv prüfen und verschlüsselt speichern"
+    )
+    umap_sync = umap_commands.add_parser(
+        "sync", help="uMap-Synchronisierung; ohne --apply immer Dry-Run"
+    )
+    umap_sync.add_argument("--apply", action="store_true", help="Änderungen hochladen")
+    umap_sync.add_argument(
+        "--network-retries",
+        type=int,
+        default=0,
+        choices=range(0, 4),
+        metavar="0..3",
+        help="Temporäre Lesefehler bis zu dreimal erneut versuchen",
+    )
     return parser
 
 
@@ -91,6 +116,67 @@ def _channel_command(args, services) -> int:
     return 0
 
 
+def _umap_summary(result) -> str:
+    summary = result.summary
+    mode = "angewendet und verifiziert" if result.applied else "Dry-Run"
+    return (
+        f"{mode}: neu={summary.added}, geändert={summary.updated}, "
+        f"entfernt={summary.removed}, unverändert={summary.unchanged}, "
+        f"verwaist={summary.orphaned}, fotos={summary.photos}"
+    )
+
+
+def _configure_umap_session(services) -> int:
+    config = services.settings.config.umap
+    if config is None:
+        raise UMapSyncError("Die uMap-Anbindung ist nicht konfiguriert oder deaktiviert")
+    session_id = getpass.getpass("uMap-Cookie sessionid: ").strip()
+    csrf_token = getpass.getpass("uMap-Cookie csrftoken: ").strip()
+    user_agent = input(
+        f"Browser-User-Agent [{services.settings.umap_user_agent}]: "
+    ).strip() or services.settings.umap_user_agent
+    credentials = UMapCredentials(session_id, csrf_token, user_agent)
+    client = UMapClient(
+        config,
+        credentials,
+        user_agent=services.settings.umap_user_agent,
+    )
+    client.verify_login()
+    save_session(
+        services.settings.paths.umap_session_file,
+        services.settings.cipher,
+        credentials,
+    )
+    print("uMap-Sitzung erfolgreich geprüft und verschlüsselt gespeichert.")
+    return 0
+
+
+def _umap_command(args, services) -> int:
+    if args.umap_command == "session":
+        return _configure_umap_session(services)
+    if args.umap_command == "check":
+        check_connection(services)
+        print("uMap-Sitzung und Ziel-Layer sind lesend erreichbar.")
+        return 0
+    for attempt in range(args.network_retries + 1):
+        try:
+            result = synchronize(services, apply=args.apply)
+            break
+        except UMapNetworkError:
+            if attempt >= args.network_retries:
+                raise
+            delay = 5 * (2**attempt)
+            logging.warning(
+                "Temporärer uMap-Netzwerkfehler; neuer Versuch in %s Sekunden.",
+                delay,
+            )
+            time.sleep(delay)
+    print(_umap_summary(result))
+    if result.backup_file:
+        print(f"Verschlüsseltes Layer-Backup: {result.backup_file}")
+    return 0
+
+
 def main(argv=None) -> int:
     logging.basicConfig(
         level=logging.INFO,
@@ -116,6 +202,8 @@ def main(argv=None) -> int:
             return 0
         if args.command == "channel":
             return _channel_command(args, services)
+        if args.command == "umap":
+            return _umap_command(args, services)
         if args.command == "admin":
             if args.action == "list":
                 print(f"Administratoren: {len(services.admins.load())}")
@@ -129,7 +217,16 @@ def main(argv=None) -> int:
             )
             print("Administrator gespeichert." if changed else "Keine Änderung.")
             return 0
-    except (ConfigurationError, ChannelError, OSError, ValueError) as exc:
+    except (
+        ConfigurationError,
+        ChannelError,
+        UMapError,
+        UMapSessionError,
+        UMapSyncError,
+        OperationLockedError,
+        OSError,
+        ValueError,
+    ) as exc:
         print(f"Abgebrochen: {exc}", file=sys.stderr)
         return 1
     return 1

@@ -272,3 +272,11 @@ git pull
 Reinstalling is important after dependency or package metadata changes. Existing
 `.env.local`, `config/bot.local.json`, and `.local/` data remain local and are
 not replaced by `git pull`.
+
+## Optional uMap synchronization
+
+The bot can synchronize approved reports to a separately configured uMap
+layer. This integration is disabled by default and its normal command is a
+read-only dry-run. Follow the dedicated
+[uMap Synchronization Guide](UMAP_SYNC.md) before enabling it. Never copy map
+IDs, session cookies, encryption keys, or credentials from another deployment.

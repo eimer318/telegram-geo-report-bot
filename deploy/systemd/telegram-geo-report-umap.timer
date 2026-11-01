@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily Telegram Geo Report Bot uMap synchronization
+
+[Timer]
+OnCalendar=*-*-* 18:00:00 Europe/Berlin
+Persistent=true
+RandomizedDelaySec=2min
+AccuracySec=1min
+Unit=telegram-geo-report-umap.service
+
+[Install]
+WantedBy=timers.target

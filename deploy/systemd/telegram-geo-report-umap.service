@@ -1,0 +1,19 @@
+[Unit]
+Description=Telegram Geo Report Bot uMap synchronization
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=telegram-geo-report
+Group=telegram-geo-report
+WorkingDirectory=/opt/telegram-geo-report-bot
+EnvironmentFile=/etc/telegram-geo-report-bot.env
+ExecStart=/opt/telegram-geo-report-bot/.venv/bin/python -m telegram_geo_report_bot --env-file /etc/telegram-geo-report-bot.env umap sync --apply --network-retries 2
+TimeoutStartSec=15min
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/telegram-geo-report-bot

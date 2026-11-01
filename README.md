@@ -13,6 +13,7 @@ submissions, and exporting approved records as JSON and GeoJSON.
 - automatic validation of nearby reports from different pseudonymous reporters;
 - privacy-conscious JSON and GeoJSON exports of approved reports;
 - optional, resumable Telegram channel digests;
+- optional, idempotent uMap synchronization with a safe dry-run default;
 - configurable categories, text, limits, and geographic search scope.
 
 ## Quick start
@@ -56,6 +57,7 @@ requests to Telegram or Nominatim.
 ## Documentation
 
 - [Step-by-Step Setup and Testing Guide](docs/STEP_BY_STEP_GUIDE.md)
+- [Optional uMap Synchronization](docs/UMAP_SYNC.md)
 - [Security Policy](SECURITY.md)
 
 ## License
