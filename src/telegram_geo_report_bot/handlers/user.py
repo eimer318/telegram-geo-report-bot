@@ -318,9 +318,7 @@ async def handle_text(update, context) -> bool:
             await _flow_message(
                 update,
                 context,
-                "🔎 Bitte die passende Adresse auswählen:\n\n"
-                "Adressdaten © OpenStreetMap-Mitwirkende\n"
-                "https://www.openstreetmap.org/copyright",
+                "🔎 Bitte die passende Adresse auswählen:",
                 keyboard,
                 link_preview_options=LinkPreviewOptions(is_disabled=True),
             )

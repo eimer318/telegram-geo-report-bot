@@ -135,7 +135,10 @@ class UserUiTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(consumed)
         delete.assert_awaited_once_with()
         flow_message.assert_awaited_once()
-        self.assertIn("OpenStreetMap", flow_message.await_args.args[2])
+        self.assertEqual(
+            "🔎 Bitte die passende Adresse auswählen:",
+            flow_message.await_args.args[2],
+        )
         self.assertTrue(
             flow_message.await_args.kwargs["link_preview_options"].is_disabled
         )

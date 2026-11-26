@@ -63,3 +63,11 @@ requests to Telegram or Nominatim.
 ## License
 
 Licensed under the GNU Affero General Public License v3.0 only. See [LICENSE](LICENSE).
+
+## Address data and licence
+
+The address search uses Nominatim with OpenStreetMap data.
+Address data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright),
+available under the [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
+The public Nominatim service is subject to its
+[usage policy](https://operations.osmfoundation.org/policies/nominatim/).
