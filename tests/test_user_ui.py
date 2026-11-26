@@ -2,6 +2,9 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+from telegram import LinkPreviewOptions
+from telegram.error import BadRequest
+
 from telegram_geo_report_bot.handlers.common import format_user_entry, main_keyboard
 from telegram_geo_report_bot.handlers.user import (
     _back_or_cancel_button,
@@ -38,6 +41,53 @@ class UserUiTests(unittest.IsolatedAsyncioTestCase):
         )
         reply_text.assert_not_awaited()
         self.assertEqual(42, context.user_data["flow_message_id"])
+
+    async def test_flow_message_suppresses_previews_when_editing_or_sending(self):
+        for reuse_prompt in (False, True):
+            for edit_fails in (False, True):
+                with self.subTest(reuse_prompt=reuse_prompt, edit_fails=edit_fails):
+                    reply = AsyncMock(return_value=SimpleNamespace(message_id=43))
+                    edit = AsyncMock(
+                        return_value=SimpleNamespace(message_id=42),
+                        side_effect=BadRequest("cannot edit") if edit_fails else None,
+                    )
+                    update = SimpleNamespace(
+                        callback_query=None,
+                        effective_chat=SimpleNamespace(id=7),
+                        effective_message=SimpleNamespace(reply_text=reply),
+                    )
+                    context = SimpleNamespace(
+                        user_data={"flow_message_id": 41} if reuse_prompt else {},
+                        bot=SimpleNamespace(edit_message_text=edit),
+                    )
+                    await _flow_message(
+                        update, context, "https://www.openstreetmap.org/copyright",
+                        link_preview_options=LinkPreviewOptions(is_disabled=True),
+                    )
+                    sent = edit if reuse_prompt and not edit_fails else reply
+                    self.assertTrue(sent.await_args.kwargs["link_preview_options"].is_disabled)
+
+    async def test_flow_callback_suppresses_previews_including_send_fallback(self):
+        for edit_fails in (False, True):
+            with self.subTest(edit_fails=edit_fails):
+                edit = AsyncMock(
+                    return_value=SimpleNamespace(message_id=42),
+                    side_effect=BadRequest("cannot edit") if edit_fails else None,
+                )
+                reply = AsyncMock(return_value=SimpleNamespace(message_id=43))
+                update = SimpleNamespace(
+                    callback_query=SimpleNamespace(edit_message_text=edit),
+                    effective_message=SimpleNamespace(reply_text=reply),
+                )
+                context = SimpleNamespace(user_data={})
+                await _flow_message(
+                    update, context, "https://www.openstreetmap.org/copyright",
+                    link_preview_options=LinkPreviewOptions(is_disabled=True),
+                )
+                sent = reply if edit_fails else edit
+                self.assertTrue(sent.await_args.kwargs["link_preview_options"].is_disabled)
+                if not edit_fails:
+                    reply.assert_not_awaited()
 
     async def test_address_input_is_removed_after_it_was_processed(self):
         delete = AsyncMock()
@@ -86,6 +136,9 @@ class UserUiTests(unittest.IsolatedAsyncioTestCase):
         delete.assert_awaited_once_with()
         flow_message.assert_awaited_once()
         self.assertIn("OpenStreetMap", flow_message.await_args.args[2])
+        self.assertTrue(
+            flow_message.await_args.kwargs["link_preview_options"].is_disabled
+        )
         self.assertIn("address_results", context.user_data)
 
     async def test_failed_address_cleanup_does_not_interrupt_the_flow(self):

@@ -6,7 +6,7 @@ import asyncio
 import logging
 import uuid
 
-from telegram import InlineKeyboardButton
+from telegram import InlineKeyboardButton, LinkPreviewOptions
 from telegram.error import BadRequest
 
 from ..entries import count_reporter_entries_on_date, utc_now_iso
@@ -104,11 +104,16 @@ def _draft_address_text(entry: dict) -> str:
     )
 
 
-async def _flow_message(update, context, text: str, keyboard=None):
+async def _flow_message(
+    update, context, text: str, keyboard=None, *, link_preview_options=None
+):
     """Keep one active bot prompt while a report is being entered."""
+    message_options = {}
+    if link_preview_options is not None:
+        message_options["link_preview_options"] = link_preview_options
     query = update.callback_query
     if query is not None:
-        message = await edit_or_send(update, text, keyboard)
+        message = await edit_or_send(update, text, keyboard, **message_options)
     else:
         message = None
         message_id = context.user_data.get("flow_message_id")
@@ -119,12 +124,14 @@ async def _flow_message(update, context, text: str, keyboard=None):
                     message_id=message_id,
                     text=text,
                     reply_markup=_markup(keyboard) if keyboard else None,
+                    **message_options,
                 )
             except BadRequest:
                 message = None
         if message is None:
             message = await update.effective_message.reply_text(
-                text, reply_markup=_markup(keyboard) if keyboard else None
+                text, reply_markup=_markup(keyboard) if keyboard else None,
+                **message_options,
             )
     message_id = getattr(message, "message_id", None)
     if message_id:
@@ -315,6 +322,7 @@ async def handle_text(update, context) -> bool:
                 "Adressdaten © OpenStreetMap-Mitwirkende\n"
                 "https://www.openstreetmap.org/copyright",
                 keyboard,
+                link_preview_options=LinkPreviewOptions(is_disabled=True),
             )
             return True
         finally:

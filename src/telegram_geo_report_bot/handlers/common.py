@@ -19,15 +19,24 @@ def get_services(context) -> Services:
     return services
 
 
-async def edit_or_send(update, text: str, keyboard=None) -> Any:
+async def edit_or_send(
+    update, text: str, keyboard=None, *, link_preview_options=None
+) -> Any:
     markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+    message_options = {}
+    if link_preview_options is not None:
+        message_options["link_preview_options"] = link_preview_options
     query = update.callback_query
     if query is not None:
         try:
-            return await query.edit_message_text(text, reply_markup=markup)
+            return await query.edit_message_text(
+                text, reply_markup=markup, **message_options
+            )
         except BadRequest:
             pass
-    return await update.effective_message.reply_text(text, reply_markup=markup)
+    return await update.effective_message.reply_text(
+        text, reply_markup=markup, **message_options
+    )
 
 
 def main_keyboard(is_admin: bool, *, has_result_link: bool) -> list[list[InlineKeyboardButton]]:
