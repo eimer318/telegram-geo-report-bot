@@ -11,7 +11,7 @@ the repository.
 - Visual Studio Code (recommended);
 - SSH access to the GitHub repository;
 - a Telegram test-bot token;
-- a contact address or project URL for the Nominatim user agent.
+- an application-identifying Nominatim user agent (provided in the template).
 
 Never use a production token or production data for this walkthrough. Only one
 long-polling process may use a Telegram token at a time. Stop every other local
@@ -67,7 +67,7 @@ ENCRYPTION_KEY=YOUR_NEW_FERNET_KEY
 BOT_CONFIG_FILE=config/bot.local.json
 BOT_DATA_DIR=.local/data
 BOT_PHOTO_DIR=.local/photos
-NOMINATIM_USER_AGENT=TelegramGeoReportBot-Test/0.1 (your-contact@example.org)
+NOMINATIM_USER_AGENT=TelegramGeoReportBot/1.0
 NOMINATIM_SEARCH_URL=https://nominatim.openstreetmap.org/search
 
 TELEGRAM_CHANNEL_ID=
@@ -76,8 +76,9 @@ CHANNEL_DAILY_LIMIT=true
 ```
 
 The user agent is not a password or API key. It identifies the application to
-the public Nominatim service. Replace the example contact with an address or URL
-monitored by the operator. `NOMINATIM_SEARCH_URL` may point to another compatible
+the public Nominatim service. The provided application name and version can be
+used as-is. A contact address or project URL may be added, but is not required
+for this setup. `NOMINATIM_SEARCH_URL` may point to another compatible
 Nominatim provider or a self-hosted instance without changing the application.
 Before deployment, review the selected provider's usage policy. The public OSMF
 service has strict capacity, identification, caching, and attribution rules:
